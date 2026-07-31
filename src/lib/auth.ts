@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { APIError } from "better-auth/api";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { copySharedLibrary } from "./library-seed";
 
 export function isEmailAllowed(email: string | null | undefined): boolean {
   const allowlist = (process.env.ALLOWED_EMAILS ?? "")
@@ -35,6 +36,20 @@ export const auth = betterAuth({
             throw new APIError("FORBIDDEN", {
               message: "Este email no está autorizado para usar LibriBox.",
             });
+          }
+        },
+        // Los usuarios nuevos heredan la biblioteca compartida (misma casa,
+        // mismos libros físicos), cada uno con su propio estado de lectura.
+        after: async (newUser) => {
+          try {
+            const copied = await copySharedLibrary(newUser.id, newUser.email);
+            if (copied > 0) {
+              console.log(`[LibriBox] ${copied} libros copiados a ${newUser.email}`);
+            }
+          } catch (error) {
+            // Un fallo aquí no debe impedir el registro: la biblioteca se puede
+            // clonar después con `node scripts/copy-library.mjs`.
+            console.error("[LibriBox] No se pudo clonar la biblioteca:", error);
           }
         },
       },

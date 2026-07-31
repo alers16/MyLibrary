@@ -26,6 +26,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# artefactos de scripts/import-books.mjs
+scripts/.gbooks-cache.json
+scripts/.import-preview.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
