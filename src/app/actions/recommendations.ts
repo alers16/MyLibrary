@@ -33,6 +33,37 @@ const recommendationSchema = z.object({
 
 type LibraryBook = Awaited<ReturnType<typeof listLibraryForPrompt>>[number];
 
+/** Aplana el error del AI SDK: los reintentos anidan la causa real. */
+function flattenError(error: unknown): string {
+  const parts: string[] = [];
+  let current = error;
+  for (let depth = 0; current && depth < 5; depth += 1) {
+    const e = current as { message?: string; lastError?: unknown; cause?: unknown };
+    if (typeof e.message === "string") parts.push(e.message);
+    current = e.lastError ?? e.cause;
+  }
+  return parts.join(" | ").toLowerCase();
+}
+
+/** Traduce el fallo de la IA a algo accionable para el usuario. */
+function describeAiError(error: unknown, modelName: string): string {
+  const text = flattenError(error);
+
+  if (text.includes("no credits remaining") || text.includes("insufficient_quota") || text.includes("exceeded your current quota")) {
+    return "Tu cuenta de OpenAI se ha quedado sin crédito. Añade saldo en platform.openai.com/settings/organization/billing y vuelve a intentarlo.";
+  }
+  if (text.includes("incorrect api key") || text.includes("invalid_api_key") || text.includes("401")) {
+    return "La API key de OpenAI no es válida. Revisa OPENAI_API_KEY.";
+  }
+  if (text.includes("does not exist") || text.includes("model_not_found")) {
+    return `El modelo "${modelName}" no está disponible para tu cuenta. Cambia OPENAI_MODEL (por ejemplo, a gpt-5-mini).`;
+  }
+  if (text.includes("rate limit") || text.includes("429")) {
+    return "Has superado el límite de peticiones de OpenAI. Espera un momento y vuelve a intentarlo.";
+  }
+  return "La IA no respondió correctamente. Inténtalo de nuevo en unos minutos; si persiste, revisa los logs del servidor.";
+}
+
 function findOwned(
   library: LibraryBook[],
   title: string,
@@ -119,12 +150,12 @@ Reglas:
 - Usa el título en español si existe edición en español; si no, el título original.`,
     });
     object = result.object;
-  } catch {
-    return {
-      ok: false,
-      error:
-        "La IA no respondió correctamente. Comprueba tu API key de OpenAI y vuelve a intentarlo.",
-    };
+  } catch (error) {
+    // El error real solo queda en los logs del servidor; al usuario le damos la
+    // causa concreta cuando la reconocemos, porque "revisa tu API key" despista
+    // cuando el problema es el saldo o el nombre del modelo.
+    console.error("[LibriBox] Fallo al generar recomendaciones:", error);
+    return { ok: false, error: describeAiError(error, modelName) };
   }
 
   const items: RecommendationItem[] = await Promise.all(

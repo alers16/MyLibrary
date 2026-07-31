@@ -61,7 +61,9 @@ function parseGenres(categories: string[] | undefined): string[] {
 }
 
 export function openLibraryCover(isbn13: string): string {
-  return `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg`;
+  // Sin `default=false`, Open Library responde 200 con un cuerpo vacío de 43
+  // bytes cuando no tiene la portada, y eso se guardaba como URL válida.
+  return `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg?default=false`;
 }
 
 function parseVolume(volume: GoogleVolume): CatalogBook | null {
