@@ -114,18 +114,44 @@ export async function generateRecommendations(): Promise<ActionResult> {
     };
   }
 
-  const summary = library
-    .map((book) => {
-      const parts = [
-        `"${book.title}" de ${book.authors.join(", ") || "autor desconocido"}`,
-        `géneros: ${book.genres.join(", ") || "sin clasificar"}`,
-        `estado: ${STATUS_LABELS[book.status]}`,
-      ];
-      if (book.rating) parts.push(`mi nota: ${book.rating}/5`);
-      if (book.favorite) parts.push("favorito");
-      return `- ${parts.join(" · ")}`;
-    })
-    .join("\n");
+  // Los libros valorados, leídos o marcados como favoritos son los que dicen
+  // algo de sus gustos; el resto solo sirve para no recomendarle lo que ya tiene.
+  const signal = library.filter(
+    (book) => book.rating !== null || book.status === "finished" || book.favorite,
+  );
+  const rest = library.filter((book) => !signal.includes(book));
+
+  const detailed = (book: LibraryBook) => {
+    const parts = [
+      `"${book.title}" de ${book.authors.join(", ") || "autor desconocido"}`,
+      `géneros: ${book.genres.join(", ") || "sin clasificar"}`,
+      `estado: ${STATUS_LABELS[book.status]}`,
+    ];
+    if (book.rating) parts.push(`mi nota: ${book.rating}/5`);
+    if (book.favorite) parts.push("favorito");
+    return `- ${parts.join(" · ")}`;
+  };
+
+  const compact = (book: LibraryBook) =>
+    `- "${book.title}" de ${book.authors.join(", ") || "autor desconocido"}`;
+
+  // Sin ningún libro valorado ni leído no hay señal de gustos: en ese caso el
+  // detalle de toda la biblioteca (géneros y autores) es lo único que tenemos.
+  const hasSignal = signal.length > 0;
+  const summary = hasSignal
+    ? [
+        "GUSTOS (lo que ha valorado, leído o marcado como favorito; ordenado de mejor nota a peor):",
+        signal.slice(0, 80).map(detailed).join("\n"),
+        "",
+        "RESTO DE SU BIBLIOTECA (solo para que NO se los recomiendes como novedad):",
+        rest.map(compact).join("\n"),
+      ].join("\n")
+    : [
+        "Todavía no ha valorado ni terminado ningún libro, así que dedúcelo de los géneros y autores que colecciona.",
+        "",
+        "SU BIBLIOTECA COMPLETA (no se los recomiendes como novedad):",
+        library.map(compact).join("\n"),
+      ].join("\n");
 
   const modelName = process.env.OPENAI_MODEL || "gpt-5-mini";
   const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -135,17 +161,18 @@ export async function generateRecommendations(): Promise<ActionResult> {
     const result = await generateObject({
       model: openai(modelName),
       schema: recommendationSchema,
-      prompt: `Eres el bibliotecario personal de un lector hispanohablante. Esta es su biblioteca actual:
+      prompt: `Eres el bibliotecario personal de un lector hispanohablante.
 
 ${summary}
 
-Analiza sus gustos (géneros dominantes, autores, qué valora bien, sus favoritos) y devuelve exactamente 6 recomendaciones de libros reales.
+Devuelve exactamente 6 recomendaciones de libros reales.
 
 Reglas:
-- La mayoría deben ser libros que NO están en su biblioteca (descubrimientos para comprar).
-- Puedes incluir como máximo 2 libros que ya estén en su biblioteca con estado "Por leer", si encajan especialmente con sus gustos actuales ("es el momento de leerlo").
+- Basa el análisis SOBRE TODO en el bloque de GUSTOS: sus notas altas pesan más que nada, y lo que ha terminado de leer pesa más que lo que solo tiene pendiente. Una nota baja es una señal de lo que NO quiere.
+- La mayoría deben ser libros que NO aparecen en ninguno de los dos bloques (descubrimientos para comprar).
+- Puedes incluir como máximo 2 libros que ya tenga con estado "Por leer", si encajan especialmente con sus gustos actuales ("es el momento de leerlo").
 - No repitas libros con estado "Leído", "Leyendo" ni "Abandonado".
-- "reason": 2-3 frases en español, citando explícitamente los gustos detectados que justifican la recomendación.
+- "reason": 2-3 frases en español, citando explícitamente los libros y las notas concretas que justifican la recomendación.
 - "affinity": 0-100, qué tan bien encaja con sus gustos. Ordena de mayor a menor afinidad.
 - Usa el título en español si existe edición en español; si no, el título original.`,
     });

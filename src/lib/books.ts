@@ -2,6 +2,9 @@ import type { ReadingStatus } from "@/db/schema";
 
 export type { BookRow as Book, ReadingStatus } from "@/db/schema";
 
+/** Libros que muestra el dashboard antes de pulsar "Ver más". */
+export const PAGE_SIZE = 20;
+
 export const STATUS_LABELS: Record<ReadingStatus, string> = {
   to_read: "Por leer",
   reading: "Leyendo",

@@ -5,6 +5,7 @@ import {
   listGenres,
 } from "@/lib/queries";
 import {
+  PAGE_SIZE,
   SORT_OPTIONS,
   STATUS_OPTIONS,
   type ReadingStatus,
@@ -44,10 +45,11 @@ export default async function LibraryPage({
     ? (rawSort as SortOption)
     : "recent";
 
+  // Por defecto solo las 20 primeras; "Ver más" pide el resto vía ?limit=
   const rawLimit = Number(asString(params.limit));
   const limit = Number.isFinite(rawLimit)
-    ? Math.min(Math.max(Math.trunc(rawLimit), 24), 500)
-    : 24;
+    ? Math.min(Math.max(Math.trunc(rawLimit), PAGE_SIZE), 2000)
+    : PAGE_SIZE;
 
   const [{ rows, total }, genres, run] = await Promise.all([
     listBooks(user.id, { status, q, genre, favorites, sort, limit }),

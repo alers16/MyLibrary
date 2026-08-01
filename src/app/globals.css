@@ -174,4 +174,13 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* El navegador se salta el pintado y el layout de las tarjetas que están
+     fuera de pantalla. Con cientos de libros a la vez evita el tirón al
+     desplegar la biblioteca entera. `contain-intrinsic-size` reserva el alto
+     aproximado de una tarjeta para que la barra de scroll no dé saltos. */
+  .lazy-tile {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 340px;
+  }
 }

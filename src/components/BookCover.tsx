@@ -43,6 +43,7 @@ export default function BookCover({
       src={src}
       alt={`Portada de ${title}`}
       loading="lazy"
+      decoding="async"
       onError={() => setFailedSrc(src)}
       className="absolute inset-0 h-full w-full object-cover"
     />

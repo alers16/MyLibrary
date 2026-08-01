@@ -3,7 +3,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { SORT_OPTIONS, STATUS_OPTIONS, type Book } from "@/lib/books";
+import {
+  PAGE_SIZE,
+  SORT_OPTIONS,
+  STATUS_OPTIONS,
+  type Book,
+} from "@/lib/books";
 import BookCard from "./BookCard";
 import Icon from "./Icon";
 
@@ -54,6 +59,8 @@ export default function LibraryExplorer({
 
   const hasActiveFilters =
     !!currentStatus || !!currentGenre || favoritesOnly || !!urlQuery;
+
+  const showingAll = books.length >= total;
 
   return (
     <div className="space-y-16">
@@ -169,9 +176,24 @@ export default function LibraryExplorer({
           <h2 className="font-display text-headline-sm font-semibold text-on-surface">
             {hasActiveFilters ? "Resultados" : "Últimas incorporaciones"}
           </h2>
-          <span className="text-label-md font-semibold tracking-wider text-on-surface-variant">
-            {total} {total === 1 ? "libro" : "libros"}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-label-md font-semibold tracking-wider text-on-surface-variant">
+              {showingAll
+                ? `${total} ${total === 1 ? "libro" : "libros"}`
+                : `${books.length} de ${total} libros`}
+            </span>
+            {total > PAGE_SIZE && (
+              <button
+                type="button"
+                onClick={() =>
+                  setParam("limit", showingAll ? null : String(total))
+                }
+                className="rounded-full border border-outline-variant px-3 py-1 text-label-md font-semibold tracking-wider text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-primary"
+              >
+                {showingAll ? "Ver menos" : "Ver más"}
+              </button>
+            )}
+          </div>
         </div>
 
         {books.length === 0 ? (
@@ -224,16 +246,14 @@ export default function LibraryExplorer({
               </Link>
             </div>
 
-            {books.length < total && (
+            {!showingAll && (
               <div className="mt-10 text-center">
                 <button
                   type="button"
-                  onClick={() =>
-                    setParam("limit", String(books.length + 24))
-                  }
+                  onClick={() => setParam("limit", String(total))}
                   className="rounded-sm border border-outline-variant px-8 py-2 text-label-md font-semibold tracking-wider text-on-surface-variant transition-colors hover:bg-surface-container-high"
                 >
-                  Cargar más ({total - books.length} restantes)
+                  Ver más ({total - books.length} restantes)
                 </button>
               </div>
             )}

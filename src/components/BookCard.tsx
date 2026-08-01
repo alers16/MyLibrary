@@ -18,7 +18,7 @@ export default function BookCard({ book }: { book: Book }) {
   const [, startTransition] = useTransition();
 
   return (
-    <Link href={`/book/${book.id}`} className="group block">
+    <Link href={`/book/${book.id}`} className="lazy-tile group block">
       <article>
         <div className="vellum-card book-shadow relative mb-3 aspect-[2/3] overflow-hidden rounded-xs">
           <BookCover src={book.coverUrl} title={book.title} />

@@ -76,7 +76,13 @@ export async function getBook(
   return rows[0] ?? null;
 }
 
-/** Resumen de toda la biblioteca para el prompt de la IA. */
+/**
+ * Resumen de la biblioteca para el prompt de la IA.
+ *
+ * El orden importa: primero lo que revela los gustos (mejor valorados, luego
+ * leídos y favoritos) y al final el resto. Así, si alguna vez hay que recortar,
+ * se pierde lo menos informativo.
+ */
 export async function listLibraryForPrompt(userId: string) {
   return db
     .select({
@@ -91,8 +97,13 @@ export async function listLibraryForPrompt(userId: string) {
     })
     .from(books)
     .where(eq(books.userId, userId))
-    .orderBy(desc(books.addedAt))
-    .limit(120);
+    .orderBy(
+      sql`${books.rating} DESC NULLS LAST`,
+      sql`(${books.status} = 'finished') DESC`,
+      sql`${books.favorite} DESC`,
+      desc(books.addedAt),
+    )
+    .limit(600);
 }
 
 export async function getLatestRecommendationRun(userId: string) {
