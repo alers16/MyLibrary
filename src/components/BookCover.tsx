@@ -45,6 +45,12 @@ export default function BookCover({
       loading="lazy"
       decoding="async"
       onError={() => setFailedSrc(src)}
+      // Open Library devuelve un GIF transparente de 1x1 cuando no tiene la
+      // portada: carga sin error, así que hay que mirar el tamaño real.
+      onLoad={(event) => {
+        const img = event.currentTarget;
+        if (img.naturalWidth <= 2 || img.naturalHeight <= 2) setFailedSrc(src);
+      }}
       className="absolute inset-0 h-full w-full object-cover"
     />
   );

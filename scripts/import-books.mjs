@@ -224,7 +224,11 @@ for (const [title, author, category, year] of CATALOG) {
   const isbn13 = match?.isbn13 ?? null;
   const coverUrl =
     match?.thumbnail?.replace(/^http:/, "https:") ??
-    (isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg` : null);
+    // `default=false` evita que Open Library devuelva un GIF vacío de 1x1
+    // haciéndolo pasar por portada válida.
+    (isbn13
+      ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg?default=false`
+      : null);
 
   rows.push({
     googleId,
