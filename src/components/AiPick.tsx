@@ -5,7 +5,7 @@ import Icon from "./Icon";
 
 /** Tarjeta del dashboard: mejor recomendación IA cacheada, o CTA si no hay. */
 export default function AiPick({ run }: { run: RecommendationRun | null }) {
-  const top = run?.items?.[0];
+  const top = run?.items?.find((item) => !item.dismissed);
 
   return (
     <section className="relative">

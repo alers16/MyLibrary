@@ -11,11 +11,19 @@ import {
   recommendationRuns,
   type RecommendationItem,
 } from "@/db/schema";
+import { sql } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { amazonSearchUrl, normalizeText, STATUS_LABELS } from "@/lib/books";
 import { getVolume, lookupVolume } from "@/lib/google-books";
-import { listLibraryForPrompt, UUID_REGEX } from "@/lib/queries";
+import {
+  listLibraryForPrompt,
+  listRecommendationRuns,
+  UUID_REGEX,
+} from "@/lib/queries";
 import type { ActionResult } from "./books";
+
+/** Cuántas generaciones se conservan en el historial. */
+const RUNS_TO_KEEP = 10;
 
 const recommendationSchema = z.object({
   recommendations: z
@@ -153,6 +161,25 @@ export async function generateRecommendations(): Promise<ActionResult> {
         library.map(compact).join("\n"),
       ].join("\n");
 
+  // Lo que descartó en generaciones anteriores queda vetado.
+  const previousRuns = await listRecommendationRuns(user.id, RUNS_TO_KEEP);
+  const dismissed = [
+    ...new Set(
+      previousRuns.flatMap((run) =>
+        run.items
+          .filter((item) => item.dismissed)
+          .map((item) => `"${item.title}" de ${item.author}`),
+      ),
+    ),
+  ].slice(0, 40);
+
+  const dismissedBlock =
+    dismissed.length > 0
+      ? `\n\nEl lector ha descartado estas sugerencias anteriores; NO las repitas:\n${dismissed
+          .map((entry) => `- ${entry}`)
+          .join("\n")}`
+      : "";
+
   const modelName = process.env.OPENAI_MODEL || "gpt-5-mini";
   const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -163,7 +190,7 @@ export async function generateRecommendations(): Promise<ActionResult> {
       schema: recommendationSchema,
       prompt: `Eres el bibliotecario personal de un lector hispanohablante.
 
-${summary}
+${summary}${dismissedBlock}
 
 Devuelve exactamente 6 recomendaciones de libros reales.
 
@@ -221,6 +248,63 @@ Reglas:
     items,
     model: modelName,
   });
+
+  // El historial no crece sin límite: se conservan las últimas generaciones.
+  await db.execute(sql`
+    DELETE FROM ${recommendationRuns}
+    WHERE ${recommendationRuns.userId} = ${user.id}
+      AND ${recommendationRuns.id} NOT IN (
+        SELECT id FROM ${recommendationRuns}
+        WHERE ${recommendationRuns.userId} = ${user.id}
+        ORDER BY ${recommendationRuns.createdAt} DESC
+        LIMIT ${RUNS_TO_KEEP}
+      )
+  `);
+
+  revalidatePath("/recommendations");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/** Variante para <form action> del botón "No me interesa". */
+export async function dismissRecommendationAction(
+  runId: string,
+  index: number,
+  _formData: FormData,
+): Promise<void> {
+  await dismissRecommendation(runId, index);
+}
+
+/** Marca una recomendación como descartada: se oculta y no se repite. */
+export async function dismissRecommendation(
+  runId: string,
+  index: number,
+): Promise<ActionResult> {
+  const user = await requireUser();
+  if (!UUID_REGEX.test(runId)) return { ok: false, error: "Datos no válidos." };
+
+  const runs = await db
+    .select()
+    .from(recommendationRuns)
+    .where(
+      and(
+        eq(recommendationRuns.id, runId),
+        eq(recommendationRuns.userId, user.id),
+      ),
+    )
+    .limit(1);
+  const run = runs[0];
+  if (!run || !run.items[index]) {
+    return { ok: false, error: "Recomendación no encontrada." };
+  }
+
+  const updatedItems = run.items.map((entry, i) =>
+    i === index ? { ...entry, dismissed: true } : entry,
+  );
+  await db
+    .update(recommendationRuns)
+    .set({ items: updatedItems })
+    .where(eq(recommendationRuns.id, runId));
 
   revalidatePath("/recommendations");
   revalidatePath("/");

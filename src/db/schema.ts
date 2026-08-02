@@ -102,6 +102,10 @@ export const books = pgTable(
     rating: smallint("rating"),
     favorite: boolean("favorite").notNull().default(false),
     notes: text("notes"),
+    /* Progreso de lectura: se rellenan solos al cambiar de estado. */
+    currentPage: integer("current_page"),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
     addedAt: timestamp("added_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -128,6 +132,8 @@ export type RecommendationItem = {
   isbn13?: string;
   coverUrl?: string;
   buyUrl: string;
+  /** "No me interesa": se oculta y se veta en las siguientes generaciones. */
+  dismissed?: boolean;
 };
 
 export const recommendationRuns = pgTable("recommendation_runs", {

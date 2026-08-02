@@ -5,6 +5,20 @@ export type { BookRow as Book, ReadingStatus } from "@/db/schema";
 /** Libros que muestra el dashboard antes de pulsar "Ver más". */
 export const PAGE_SIZE = 20;
 
+/** Nombres en español de los códigos de idioma habituales del catálogo. */
+export const LANGUAGE_LABELS: Record<string, string> = {
+  es: "Español",
+  en: "Inglés",
+  fr: "Francés",
+  de: "Alemán",
+  it: "Italiano",
+  pt: "Portugués",
+  "pt-BR": "Portugués (Brasil)",
+  ca: "Catalán",
+  gl: "Gallego",
+  eu: "Euskera",
+};
+
 export const STATUS_LABELS: Record<ReadingStatus, string> = {
   to_read: "Por leer",
   reading: "Leyendo",

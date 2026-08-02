@@ -6,6 +6,7 @@ import Icon from "./Icon";
 
 const NAV_ITEMS = [
   { href: "/", label: "Biblioteca", icon: "library_books" },
+  { href: "/stats", label: "Datos", icon: "bar_chart" },
   { href: "/recommendations", label: "IA", icon: "auto_awesome" },
   { href: "/add", label: "Añadir", icon: "add_box" },
 ];

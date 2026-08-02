@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { RecommendationItem } from "@/db/schema";
-import { addRecommendationAction } from "@/app/actions/recommendations";
+import {
+  addRecommendationAction,
+  dismissRecommendationAction,
+} from "@/app/actions/recommendations";
 import BookCover from "./BookCover";
 import Icon from "./Icon";
 
@@ -57,6 +60,16 @@ function CardActions({ item, runId, index }: Omit<Props, "featured">) {
         >
           <Icon name="add_box" className="text-[18px]" />
           Añadir a Por leer
+        </button>
+      </form>
+      <form action={dismissRecommendationAction.bind(null, runId, index)}>
+        <button
+          type="submit"
+          title="Se oculta y la IA no volverá a proponerlo"
+          className="inline-flex items-center gap-1.5 rounded-sm px-3 py-2 text-label-md font-semibold tracking-wider text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-error"
+        >
+          <Icon name="thumb_down" className="text-[16px]" />
+          No me interesa
         </button>
       </form>
     </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { updateBook } from "@/app/actions/books";
 import { STATUS_LABELS, type Book, type ReadingStatus } from "@/lib/books";
 import BookCover from "./BookCover";
@@ -16,9 +17,20 @@ const BADGE_STYLES: Record<ReadingStatus, string> = {
 
 export default function BookCard({ book }: { book: Book }) {
   const [, startTransition] = useTransition();
+  const searchParams = useSearchParams();
+
+  // La ficha recibe los filtros activos para poder volver y navegar
+  // anterior/siguiente dentro del mismo resultado.
+  const qs = searchParams.toString();
+  const href = qs ? `/book/${book.id}?${qs}` : `/book/${book.id}`;
+
+  const progress =
+    book.status === "reading" && book.pageCount && book.currentPage
+      ? Math.min(100, Math.round((book.currentPage / book.pageCount) * 100))
+      : null;
 
   return (
-    <Link href={`/book/${book.id}`} className="lazy-tile group block">
+    <Link href={href} className="lazy-tile group block">
       <article>
         <div className="vellum-card book-shadow relative mb-3 aspect-[2/3] overflow-hidden rounded-xs">
           <BookCover src={book.coverUrl} title={book.title} />
@@ -51,6 +63,21 @@ export default function BookCard({ book }: { book: Book }) {
               className="text-[18px]"
             />
           </button>
+          {progress !== null && (
+            <div
+              className="absolute inset-x-0 bottom-0 z-10 h-1.5 bg-inverse-surface/30"
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Progreso de lectura: ${progress}%`}
+            >
+              <div
+                className="h-full bg-tertiary-container"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
         </div>
         <h3 className="line-clamp-1 font-display text-[18px] leading-snug font-semibold text-on-surface transition-colors group-hover:text-primary">
           {book.title}
@@ -58,12 +85,26 @@ export default function BookCard({ book }: { book: Book }) {
         <p className="line-clamp-1 text-label-md text-on-surface-variant">
           {book.authors.join(", ") || "Autor desconocido"}
         </p>
-        {book.rating ? (
-          <p className="mt-0.5 flex items-center gap-1 text-label-sm font-medium text-tertiary">
-            <Icon name="star" filled className="text-[14px]" />
-            {book.rating}/5
+        {(book.rating || book.notes || progress !== null) && (
+          <p className="mt-0.5 flex items-center gap-2 text-label-sm font-medium text-tertiary">
+            {book.rating && (
+              <span className="flex items-center gap-1">
+                <Icon name="star" filled className="text-[14px]" />
+                {book.rating}/5
+              </span>
+            )}
+            {progress !== null && (
+              <span className="text-on-surface-variant">{progress}%</span>
+            )}
+            {book.notes && (
+              <Icon
+                name="sticky_note_2"
+                className="text-[14px] text-on-surface-variant"
+                aria-label="Tiene notas personales"
+              />
+            )}
           </p>
-        ) : null}
+        )}
       </article>
     </Link>
   );
